@@ -9,7 +9,7 @@ pub enum FirstWeekDay {
 #[derive(Debug)]
 pub struct Calendar {
     cal: Vec<[u32; 7]>,
-    date: NaiveDate,
+    date: NaiveDateTime,
     weekdays: [String; 7],
     week_nums: Vec<u32>,
     pub show_weeks: bool,
@@ -38,17 +38,14 @@ impl fmt::Display for Calendar {
                     (i, j) if (i, j, true) == (row_i as u8, col_i as u32, self.highlight_today) => {
                         format!("<b><u>{:>2}</u></b> ", e)
                     }
-                    (i, j)
-                        if (i, j, false) == (row_i as u8, col_i as u32, self.highlight_today) =>
-                    {
+                    (i, j) if (i, j, false) == (row_i as u8, col_i as u32, self.highlight_today) => {
                         format!("{:>2} ", e)
                     }
                     _ => format!("{:width$}", format!("{:>2}", e)),
                 };
                 match e {
                     0 => {
-                        write!(f, "{:width$}", format!("{:>2}", ""))
-                            .expect("Error writing to buffer");
+                        write!(f, "{:width$}", format!("{:>2}", "")).expect("Error writing to buffer");
                     }
                     _ => {
                         write!(f, "{}", symb).expect("Error writing to buffer");
@@ -61,6 +58,18 @@ impl fmt::Display for Calendar {
     }
 }
 
+fn week_number(day: NaiveDate, first_week_day: &FirstWeekDay) -> u32 {
+    match first_week_day {
+        FirstWeekDay::Mon => day.iso_week().week(),
+        FirstWeekDay::Sun => {
+            let week_number_sun: u32 = day.format("%U").to_string().parse().unwrap();
+            let is_not_sunday =
+                (NaiveDate::from_ymd_opt(day.year() + 1, 1, 1).unwrap().weekday() != Weekday::Sun) as u32;
+            (week_number_sun + is_not_sunday) % 53
+        }
+    }
+}
+
 impl Calendar {
     pub fn show_ym(&self) -> String {
         let format = env::var("FORMAT_DATE").unwrap_or("%B %Y".into());
@@ -69,15 +78,15 @@ impl Calendar {
     }
 
     pub fn from_ym(
-        date: NaiveDate,
+        date: NaiveDateTime,
         first_week_day: &FirstWeekDay,
         show_weeks: &bool,
         highlight_today: bool,
     ) -> Self {
-        let month_first_day = date.with_day(1).expect(&format!(
-            "Can't define beginnig of month. Source date: {}",
-            date
-        ));
+        let month_first_day = date
+            .with_day(1)
+            .expect(&format!("Can't define beginnig of month. Source date: {}", date))
+            .date();
         let year = date.year();
         let month = date.month();
         let month_last_day = NaiveDate::from_ymd_opt(year, month + 1, 1)
@@ -100,7 +109,7 @@ impl Calendar {
         let mut cal: Vec<[u32; 7]> = vec![];
         let mut week: [u32; 7] = [0; 7];
         let mut week_nums: Vec<u32> = vec![];
-        week_nums.push(month_first_day.iso_week().week());
+        week_nums.push(week_number(month_first_day, first_week_day));
         let mut row_i = 0;
         let mut selected_row = 1;
         let mut selected_col = 1;
@@ -110,13 +119,13 @@ impl Calendar {
                 break;
             }
             if idx != 0 && idx % 7 == 0 {
-                week_nums.push(d.iso_week().week());
+                week_nums.push(week_number(d, first_week_day));
                 row_i += 1;
                 cal.push(week);
                 week = [0; 7];
             }
             week[(idx % 7) as usize] = d.day();
-            if d == date {
+            if d == date.date() {
                 selected_row = row_i + 1;
                 selected_col = (idx % 7) + 1;
             }
@@ -151,5 +160,97 @@ impl Calendar {
             selected_col,
             highlight_today,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::NaiveDateTime;
+
+    fn iter_compare<T>(a: &[T], b: &[T]) -> bool
+    where
+        T: PartialEq,
+    {
+        (a.len() == a.len()) && a.iter().zip(b.iter()).all(|(aa, bb)| aa == bb)
+    }
+
+    fn cal_compare(va: &Vec<[u32; 7]>, vb: &Vec<[u32; 7]>) -> bool {
+        (va.len() == vb.len())
+            && va
+                .iter()
+                .zip(vb)
+                .all(|(a, b)| (a.len() == b.len()) && a.iter().zip(b.iter()).all(|(aa, bb)| aa == bb))
+    }
+
+    #[test]
+    fn test_calendar_sun() {
+        let etalon_cal = vec![
+            [0, 1, 2, 3, 4, 5, 6],
+            [7, 8, 9, 10, 11, 12, 13],
+            [14, 15, 16, 17, 18, 19, 20],
+            [21, 22, 23, 24, 25, 26, 27],
+            [28, 29, 30, 31, 0, 0, 0],
+        ];
+        let etalon_weekdays = [
+            "Su".to_owned(),
+            "Mo".to_owned(),
+            "Tu".to_owned(),
+            "We".to_owned(),
+            "Th".to_owned(),
+            "Fr".to_owned(),
+            "Sa".to_owned(),
+        ];
+        let etalon_week_nums = vec![1, 2, 3, 4, 5];
+        let etalon_selected_row = 1;
+        let etalon_selected_col = 6;
+        let etalon_show_weeks = true;
+        let etalon_highlight_today = false;
+
+        let day = NaiveDateTime::parse_from_str("2024-01-05 00:00", "%Y-%m-%d %H:%M").unwrap();
+        let cal = super::Calendar::from_ym(day, &super::FirstWeekDay::Sun, &true, false);
+
+        assert!(cal_compare(&etalon_cal, &cal.cal));
+        assert!(iter_compare(&etalon_weekdays, &cal.weekdays));
+        assert!(iter_compare(&etalon_week_nums, &cal.week_nums));
+        assert_eq!(etalon_selected_row, cal.selected_row);
+        assert_eq!(etalon_selected_col, cal.selected_col);
+        assert_eq!(etalon_show_weeks, cal.show_weeks);
+        assert_eq!(etalon_highlight_today, cal.highlight_today);
+    }
+
+    #[test]
+    fn test_calendar_mon() {
+        let etalon_cal = vec![
+            [1, 2, 3, 4, 5, 6, 7],
+            [8, 9, 10, 11, 12, 13, 14],
+            [15, 16, 17, 18, 19, 20, 21],
+            [22, 23, 24, 25, 26, 27, 28],
+            [29, 30, 31, 0, 0, 0, 0],
+        ];
+        let etalon_weekdays = [
+            "Mo".to_owned(),
+            "Tu".to_owned(),
+            "We".to_owned(),
+            "Th".to_owned(),
+            "Fr".to_owned(),
+            "Sa".to_owned(),
+            "Su".to_owned(),
+        ];
+        let etalon_week_nums = vec![1, 2, 3, 4, 5];
+        let etalon_selected_row = 1;
+        let etalon_selected_col = 5;
+        let etalon_show_weeks = true;
+        let etalon_highlight_today = false;
+
+        let day = NaiveDateTime::parse_from_str("2024-01-05 00:00", "%Y-%m-%d %H:%M").unwrap();
+        let cal = super::Calendar::from_ym(day, &super::FirstWeekDay::Mon, &true, false);
+
+        assert!(cal_compare(&etalon_cal, &cal.cal));
+        assert!(iter_compare(&etalon_weekdays, &cal.weekdays));
+        assert!(iter_compare(&etalon_week_nums, &cal.week_nums));
+        assert_eq!(etalon_selected_row, cal.selected_row);
+        assert_eq!(etalon_selected_col, cal.selected_col);
+        assert_eq!(etalon_show_weeks, cal.show_weeks);
+        assert_eq!(etalon_highlight_today, cal.highlight_today);
     }
 }
