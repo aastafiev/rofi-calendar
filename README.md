@@ -36,4 +36,5 @@ interval=1
 - Right - list one month forward
 - Control+Left - list one year before
 - Control+Right - list one year forward
+- Home - go to today calendar
 - Esc - exit
