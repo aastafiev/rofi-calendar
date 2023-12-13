@@ -20,7 +20,7 @@ A minimal calendar pop up in rofi when clicking the date blocklet
 ```ini
 [rofi-calendar]
 command=$SCRIPT_DIR/rofi-calendar
-interval=60
+interval=1
 # FORMAT_DATE=%B %Y # date format for rofi -dmenu prompt. Defaults to `%B %Y`
 # SHOW_WEEK=true  # whether or not to show number of weeks in calendar. Possible values `true` or `false`. Defaults `true`.
 # MONDAY=true # If `true` starts weeks from Monday, else - from Sunday. Defaults to `true`.
