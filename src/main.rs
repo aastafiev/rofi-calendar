@@ -4,9 +4,9 @@ extern crate log;
 pub mod calendar;
 pub mod rofi;
 
-use calendar::FirstWeekDay;
+use calendar::{rofi_calendar, FirstWeekDay};
 use chrono::Local;
-use rofi::{rofi_calendar, BoxResult};
+use rofi::BoxResult;
 use std::{env, io::Write};
 
 fn main() -> BoxResult<()> {

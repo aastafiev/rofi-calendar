@@ -1,10 +1,9 @@
-use crate::calendar::{Calendar, FirstWeekDay};
-use chrono::{Local, Months, NaiveDateTime};
+use crate::calendar::Calendar;
 use std::{env, error, io, io::prelude::*, process};
 
 pub type BoxResult<T> = Result<T, Box<dyn error::Error>>;
 
-fn run_rofi(cal: Calendar) -> io::Result<process::Output> {
+pub fn run_rofi(cal: Calendar) -> io::Result<process::Output> {
     let y_offset: i32 = env::var("Y_OFFSET").unwrap_or("-20".into()).parse().unwrap();
     let window_width = match cal.show_weeks {
         true => 224,
@@ -62,31 +61,4 @@ fn run_rofi(cal: Calendar) -> io::Result<process::Output> {
     });
     let output = child.wait_with_output()?;
     Ok(output)
-}
-
-pub fn rofi_calendar(
-    date: NaiveDateTime,
-    first_week_day: &FirstWeekDay,
-    show_weeks: &bool,
-    highlight_today: bool,
-) -> BoxResult<()> {
-    let cal = Calendar::from_ym(date, first_week_day, show_weeks, highlight_today);
-    let output = run_rofi(cal)?;
-    let today = Local::now().naive_local();
-    let new_date = match output.status.code() {
-        Some(10) => Some(date.checked_sub_months(Months::new(1)).unwrap()),
-        Some(11) => Some(date.checked_add_months(Months::new(1)).unwrap()),
-        Some(12) => Some(date.checked_sub_months(Months::new(12)).unwrap()),
-        Some(13) => Some(date.checked_add_months(Months::new(12)).unwrap()),
-        Some(14) => Some(today),
-        _ => None,
-    };
-    match new_date {
-        Some(day) => {
-            rofi_calendar(day, first_week_day, show_weeks, day.date() == today.date())?;
-        }
-        None => {}
-    }
-
-    Ok(())
 }

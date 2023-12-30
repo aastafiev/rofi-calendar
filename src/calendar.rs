@@ -1,4 +1,5 @@
-use chrono::prelude::*;
+use crate::rofi::{run_rofi, BoxResult};
+use chrono::{prelude::*, Months};
 use std::{env, fmt};
 
 pub enum FirstWeekDay {
@@ -161,6 +162,33 @@ impl Calendar {
             highlight_today,
         }
     }
+}
+
+pub fn rofi_calendar(
+    date: NaiveDateTime,
+    first_week_day: &FirstWeekDay,
+    show_weeks: &bool,
+    highlight_today: bool,
+) -> BoxResult<()> {
+    let cal = Calendar::from_ym(date, first_week_day, show_weeks, highlight_today);
+    let output = run_rofi(cal)?;
+    let today = Local::now().naive_local();
+    let new_date = match output.status.code() {
+        Some(10) => Some(date.checked_sub_months(Months::new(1)).unwrap()),
+        Some(11) => Some(date.checked_add_months(Months::new(1)).unwrap()),
+        Some(12) => Some(date.checked_sub_months(Months::new(12)).unwrap()),
+        Some(13) => Some(date.checked_add_months(Months::new(12)).unwrap()),
+        Some(14) => Some(today),
+        _ => None,
+    };
+    match new_date {
+        Some(day) => {
+            rofi_calendar(day, first_week_day, show_weeks, day.date() == today.date())?;
+        }
+        None => {}
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
