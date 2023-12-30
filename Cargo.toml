@@ -8,7 +8,7 @@ license = "GPL-3"
 description = "A minimal calendar pop up in rofi when clicking the date blocklet"
 homepage = "https://github.com/aastafiev/rofi-calendar"
 repository = "https://github.com/aastafiev/rofi-calendar"
-keywords = ["calendar", "rofi"]
+keywords = ["calendar", "rofi", "i3blocks"]
 categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
